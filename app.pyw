@@ -1,35 +1,65 @@
-from infi.systray import SysTrayIcon
+from time import sleep
+import os
+import sys
+
 import win32serviceutil as service
-import time, threading, os
+from infi.systray import SysTrayIcon
 
-hover_text = "Vanguard Toggler"
 
-def vgc_off(sysTrayIcon):
-    print ("Attempting tp stop VGC service.")
+HOVER_TEXT = "Vanguard Toggler"
+WAIT_SECONDS = 5
+
+
+def vgc_off(tray):
+    """Turn service off."""
+    print("Attempting tp stop VGC service.")
     os.system('net stop vgc')
-    
-def vgc_on(sysTrayIcon):
-    print ("Attempting tp start VGC service.")
+    tray.update(icon='resources/off.ico')
+    update_tray(tray)
+
+
+def vgc_on(tray):
+    """Turn service on."""
+    print("Attempting tp start VGC service.")
     os.system('net start vgc')
-    
-def bye(sysTrayIcon):
-    exit()
-    print ('Go with honor, friend.')
-def do_nothing(sysTrayIcon):
-    pass
-menu_options = (('Stop VGC Service', None, vgc_off),
-                ('Start VGC Service', None, vgc_on),
-                                              )
-sysTrayIcon = SysTrayIcon("resources/warn.ico", hover_text, menu_options, on_quit=bye, default_menu_index=1)
-sysTrayIcon.start()
-WAIT_SECONDS = 1
+    update_tray(tray)
 
-def foo():
+
+def update_tray(tray):
+    """Update tray icon depending on service state."""
     if service.QueryServiceStatus('vgc')[1] == 4:
-        sysTrayIcon.update(icon='resources/on.ico')
+        tray.update(icon='resources/on.ico')
     else:
-        sysTrayIcon.update(icon='resources/off.ico')
+        tray.update(icon='resources/off.ico')
 
-    threading.Timer(WAIT_SECONDS, foo).start()
-    
-foo()
+
+def tray_daemon(tray):
+    """Infinit tray update loop."""
+    while True:
+        update_tray(tray)
+        sleep(WAIT_SECONDS)
+
+
+def main():
+
+    def on_exit(tray):
+        sys.exit()
+
+    menu_options = (
+        ('Stop VGC Service', None, vgc_off),
+        ('Start VGC Service', None, vgc_on),
+    )
+    tray = SysTrayIcon(
+        "resources/warn.ico",
+        HOVER_TEXT,
+        menu_options,
+        on_quit=on_exit,
+        default_menu_index=1
+    )
+    tray.start()
+    # Following is an infinit loop
+    tray_daemon(tray)
+
+
+if __name__ == "__main__":
+    main()
